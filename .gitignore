@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+secrets/*.secrets.yaml
+*.key
+*.pem
+*.log
+__pycache__/
+.venv/
+.pytest_cache/
+state/
+dist/
+.DS_Store

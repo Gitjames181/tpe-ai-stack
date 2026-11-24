@@ -1,0 +1,62 @@
+name: ai-stack
+services:
+  tunnel:
+    image: tpe-ai-tunnel:1.0.0
+    build:
+      context: .
+      dockerfile: docker/tunnel/Dockerfile
+      args:
+        ALPINE_IMAGE: ${ALPINE_IMAGE:-alpine:3.24.4}
+    restart: unless-stopped
+    user: "10001:10001"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    env_file:
+      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/stack.env
+    ports:
+      - "127.0.0.1:${AI_GATEWAY_PORT:-11435}:8080"
+    volumes:
+      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/ssh/id_ed25519:/run/secrets/vast_key:ro
+      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/ssh/known_hosts:/run/secrets/known_hosts:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=8m
+    networks: [ai]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  gateway:
+    image: tpe-ai-gateway:1.0.0
+    build:
+      context: .
+      dockerfile: docker/gateway/Dockerfile
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.30.8-alpine}
+    restart: unless-stopped
+    user: "101:101"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    network_mode: "service:tunnel"
+    depends_on:
+      tunnel:
+        condition: service_started
+    volumes:
+      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/gateway/tokens.conf:/run/secrets/gateway_tokens.conf:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,uid=101,gid=101
+    healthcheck:
+      # Process liveness only; scripts/smoke.py checks authenticated inference.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+networks:
+  ai:
+    driver: bridge

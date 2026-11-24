@@ -1,0 +1,19 @@
+# Intent only: Resource Sync is disabled. Configure the Stack in Komodo.
+# Verify the registered Server name before first deployment.
+[[stack]]
+name = "ai-stack"
+tags = ["ai", "inference", "tpe-px1-rmt1"]
+
+[stack.config]
+server = "tpe-px1-rmt1"
+git_provider = "github.com"
+git_account = "Gitjames181"
+repo = "Gitjames181/tpe-ai-stack"
+branch = "main"
+run_directory = "."
+file_paths = ["docker-compose.yml"]
+env_file_path = ".env"
+poll_for_updates = true
+auto_update = false
+webhook_enabled = false
+send_alerts = true

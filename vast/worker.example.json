@@ -1,0 +1,6 @@
+{
+  "source_model": "qwen3-coder:30b",
+  "model_alias": "tpe-code:latest",
+  "context_length": 16384,
+  "expected_digest": ""
+}
