@@ -62,7 +62,7 @@ class GatewayPolicyTests(unittest.TestCase):
         config = config.replace("include /etc/nginx/mime.types;", "")
         config = config.replace("/tmp/", str(cls.path) + "/")
         config = config.replace("listen 8080;", f"listen 127.0.0.1:{cls.port};")
-        config = config.replace("/run/secrets/gateway_tokens.conf", str(cls.path / "tokens.conf"))
+        config = config.replace("/run/ai/tokens.conf", str(cls.path / "tokens.conf"))
         config = config.replace("/etc/nginx/ai-proxy.conf", str(cls.path / "proxy.conf"))
         config = config.replace("127.0.0.1:11434", f"127.0.0.1:{cls.backend.server_port}")
         (cls.path / "nginx.conf").write_text(config)

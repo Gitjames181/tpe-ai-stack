@@ -13,16 +13,20 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    env_file:
-      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/stack.env
+    environment:
+      VAST_SSH_HOST: ${VAST_SSH_HOST:?Set the Vast SSH host}
+      VAST_SSH_PORT: ${VAST_SSH_PORT:?Set the mapped Vast SSH port}
+      VAST_SSH_USER: ${VAST_SSH_USER:-root}
+      VAST_SSH_PRIVATE_KEY_B64: ${VAST_SSH_PRIVATE_KEY_B64:-}
+      VAST_SSH_KNOWN_HOSTS: ${VAST_SSH_KNOWN_HOSTS:-}
     ports:
       - "127.0.0.1:${AI_GATEWAY_PORT:-11435}:8080"
-    volumes:
-      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/ssh/id_ed25519:/run/secrets/vast_key:ro
-      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/ssh/known_hosts:/run/secrets/known_hosts:ro
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=8m
-    networks: [ai]
+      - /run/ai:rw,noexec,nosuid,nodev,size=1m,mode=0700,uid=10001,gid=10001
+    networks:
+      ai:
+        aliases: [tpe-ai-api]
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
@@ -43,10 +47,11 @@ services:
     depends_on:
       tunnel:
         condition: service_started
-    volumes:
-      - ${AI_CONFIG_DIR:-/etc/tpe-ai}/gateway/tokens.conf:/run/secrets/gateway_tokens.conf:ro
+    environment:
+      TPE_AI_API_KEY: ${TPE_AI_API_KEY:-}
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m,uid=101,gid=101
+      - /run/ai:rw,noexec,nosuid,nodev,size=1m,mode=0700,uid=101,gid=101
     healthcheck:
       # Process liveness only; scripts/smoke.py checks authenticated inference.
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
@@ -59,4 +64,5 @@ services:
 
 networks:
   ai:
+    name: tpe-ai
     driver: bridge

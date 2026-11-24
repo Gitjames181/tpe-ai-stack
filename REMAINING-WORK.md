@@ -1,31 +1,19 @@
-# Remaining work and release gates
+# Remaining work
 
-## Required before claiming live operation
+The repositories now implement one Komodo Stack querying one Vast worker, with only tpe-ai-worker.yml added to Ansible.
 
-- Review and apply the matching tpe-infrastructure change.
-- Build both native VPS images and the Vast amd64 image; publish the latter privately and record exact digests.
-- Choose the actual priced rental and funding settings. A server-only cost policy does not specify a dollar ceiling.
-- Confirm live VPS resources and the exact Komodo Server resource.
-- Supply dedicated SSH access, a verified host key, caller tokens and AI TLS material through SOPS.
-- Deploy DNS/host prerequisites and the Komodo Stack.
-- Measure model fit, context, latency and GPU use on the chosen hardware.
-- Pass a real agent tool/edit/test cycle and rental restart/reconnection.
-- Record deployment commits, image/model digests, instance ID and contract expiry.
+Before claiming live operation:
 
-## Validation limits
+1. Review the simplified infrastructure PR.
+2. Build the native VPS images and Vast worker image; publish the worker image and record digests.
+3. Select the actual rental and its operating/funding policy.
+4. Run the worker playbook and confirm bootstrap completion and GPU availability.
+5. Set the Stack's connection and secret variables in Komodo, then deploy.
+6. Configure the first application/client endpoint and pass streaming plus a real coding tool/edit/test cycle.
+7. Prove rental restart recovery and record model/image/source versions.
 
-The initial automated checks cover source/configuration, actual nginx gateway behavior against a mocked inference backend, model-lock policy and SSH input validation. They do not replace a Docker image build, ARM64 container execution, provider SSH forwarding, a GPU inference run or a production Ansible check.
+Source checks exercise nginx with a mock backend, credential startup behavior, model locks, SSH validation and Compose configuration. They do not prove image builds, native ARM64 execution, real SSH forwarding, GPU fit or agent quality.
 
-The host role is tested through a local check-mode harness with synthetic credentials. SOPS-backed production execution requires the estate's normal installed collections and operator key.
+Later work: independent rental lifecycle/cost control, application workload scheduling, monitoring and additional capacity if production needs availability beyond one rental. No automatic spend cap or high-availability claim is made.
 
-## Next improvements after the pilot
-
-1. Independent provider lifecycle/cost reconciliation with explicit instance ownership, lease limits and no coupling to media-session teardown.
-2. Application workload priority, queues and separate capacity before making production depend on one rental.
-3. Tool-call streaming regression tests using the chosen pinned model/client.
-4. External monitoring of readiness, errors, latency, GPU memory and contract expiry.
-5. Multiple model routes/embedding model only when required; evaluate a native ARM64 routing gateway if needed.
-6. Test destructive-loss recovery from externally retained model/image locks.
-7. Check software/model licensing for any new capability.
-
-The 269 pending PROJ15 tasks remain the user's stated backlog count. No master workbook completion status has been changed by this infrastructure work.
+The stated 269 pending PROJ15 tasks remain unchanged.

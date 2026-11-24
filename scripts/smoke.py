@@ -10,7 +10,7 @@ import urllib.request
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="https://ai.tpe")
+    parser.add_argument("--base-url", default="http://127.0.0.1:11435")
     parser.add_argument("--ca-file", default=os.environ.get("TPE_AI_CA_FILE"))
     args = parser.parse_args()
     base = args.base_url.rstrip("/")

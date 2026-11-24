@@ -2,6 +2,7 @@ ARG NGINX_IMAGE=nginx:1.30.8-alpine
 FROM ${NGINX_IMAGE}
 COPY docker/gateway/nginx.conf /etc/nginx/nginx.conf
 COPY docker/gateway/proxy.conf /etc/nginx/ai-proxy.conf
+COPY docker/gateway/start.sh /usr/local/bin/start-gateway
+RUN chmod 0555 /usr/local/bin/start-gateway
 USER 101:101
-ENTRYPOINT ["nginx"]
-CMD ["-g", "daemon off;"]
+ENTRYPOINT ["/usr/local/bin/start-gateway"]

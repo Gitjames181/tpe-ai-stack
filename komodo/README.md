@@ -1,13 +1,14 @@
-# Komodo deployment contract
+# Komodo deployment
 
-Resource Sync is disabled by the existing TPE operating policy. ai-stack.toml documents the intended settings; it is not evidence of a configured resource.
+One Stack named ai-stack on the existing tpe-px1-rmt1 Server resource.
 
-Create one Stack named **ai-stack**, selecting the existing Server resource for tpe-px1-rmt1 (verify its actual UI name). Use Gitjames181/tpe-ai-stack, main, run directory ".", and docker-compose.yml. Leave automatic updates disabled.
+- Repository: Gitjames181/tpe-ai-stack
+- Branch: main
+- Checkout: /opt/stacks/tpe-ai-stack
+- Compose file: docker-compose.yml
+- Build the two local images on the target host.
+- Keep Resource Sync disabled and auto_update=false, following tpe-support's current policy.
 
-The host checkout is /opt/stacks/tpe-ai-stack. Ansible must first populate /etc/tpe-ai/stack.env and the SSH/gateway secret files. Set AI_CONFIG_DIR and AI_GATEWAY_PORT in the Komodo environment only if their defaults differ from the Ansible configuration.
+The TOML is intent only; configure the actual Stack in Komodo. The Stack environment owns the Vast endpoint and credentials listed in ../.env.example. Supply private values through Komodo secret variables. No host Ansible playbook or pre-created /etc/tpe-ai files are required.
 
-Use the Git account/deploy-key mechanism already approved for the estate; never put a PAT in the repository URL. Select a deploy action that builds images and verify the image creation times and running source revision afterward.
-
-Recreate both containers together following a tunnel endpoint/key change, because the gateway shares the tunnel's network namespace. Restarting only the gateway is not the intended lifecycle.
-
-Enabling Resource Sync later is a separate policy change. Ensure secret/environment ownership is reconciled before doing so.
+Run tpe-ai-worker.yml against the prepared rental, then deploy this Stack. Recreate both local containers together after endpoint/key changes. See ../RUNBOOK.md.

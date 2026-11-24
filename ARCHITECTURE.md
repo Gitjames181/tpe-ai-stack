@@ -1,52 +1,29 @@
 # Architecture
 
-## Service contract
+The deployment has one Komodo Stack on the existing tpe-px1-rmt1 and one remote Vast GPU worker.
 
-Clients use https://ai.tpe/v1 with a dedicated Bearer credential. The first model alias is tpe-code:latest. Supported public paths are GET /v1/models, POST /v1/chat/completions and POST /v1/messages. The Anthropic endpoint permits evaluation with the existing Claude Code client; model behavior and API compatibility must be tested independently of the client brand.
+## Responsibilities
 
-The gateway only forwards these paths and an authenticated readiness probe. Ollama's pull/create/delete APIs are inaccessible through it. Caller credentials are stripped before requests reach the GPU host. Logs contain caller label, path, status, latency and request ID, never Authorization headers or request bodies.
-
-One active generation is admitted across callers; excess concurrency returns 429. The initial rate allowance is 30 requests/minute per caller with a small burst. There is no hosted-provider fallback and no gateway database.
-
-## Network boundaries
-
-| Hop | Binding / destination |
+| Owner | Responsibility |
 |---|---|
-| Client to host nginx | The gateway host's VPN IP, HTTPS ai.tpe |
-| Host nginx to gateway | Host loopback 127.0.0.1:11435 |
-| Gateway to tunnel | Shared container loopback 127.0.0.1:11434 |
-| Tunnel to Vast | Public SSH endpoint and its mapped port, verified host key |
-| Vast SSH to Ollama | Remote loopback 127.0.0.1:11434 |
+| tpe-ai-stack in Komodo | Start the local API and SSH connection; supply connection settings and credentials |
+| tpe-ai-worker.yml | Configure the prepared Vast container's model settings and reconcile Ollama/bootstrap processes |
+| Vast worker image | Provide Ollama, supervisor, model cache and the restart entrypoint |
 
-The VPS initiates the SSH connection. The rental receives no broad tailnet membership, production database credentials, gateway tokens or deployment key. A dedicated SSH key authorizes access to that rental. The provider's host can still access workloads running there; send only the repository context needed for the task.
+The local API forwards requests over SSH to Ollama bound to 127.0.0.1:11434 inside the worker. The API container shares the SSH container's network namespace, so that socket remains local to the pair.
 
-Ansible's control connection also uses the public SSH endpoint and mapped port. This container profile does not apply OS, firewall, NVIDIA-driver, systemd or nested-Docker roles inside the Vast container. Vast also offers VMs, but that is a different deployment profile.
+On the host the API is published only at 127.0.0.1:11435. Same-host containers can join the tpe-ai Docker network and address tpe-ai-api:8080. Both paths require the API token. The SSH connection encrypts traffic between the host and Vast.
 
-## Runtime and persistence
+## Ownership and credentials
 
-The Vast image starts Ollama and model bootstrap under Supervisor. Vast SSH launch mode replaces an image's ENTRYPOINT, so its on-start command must be /opt/tpe-ai/start.sh. The image's default foreground entrypoint also supports isolated local container testing.
+Komodo secret variables are the runtime source for the API token and dedicated worker SSH private key. The key is encoded as one-line base64 for transport, which is not encryption. Startup writes credentials to private tmpfs files and removes them from the child process environment. Docker/Komodo administrators can still inspect the configured environment and must be trusted.
 
-Ollama binds loopback, disables cloud features and restricts parallelism to one. Model weights live under /workspace/models; model-lock.json records the resolved digest, runtime version and context setting under /workspace/tpe-ai. These files survive a stop/start of the same retained instance, but must not be treated as durable across destruction or host loss.
+The verified SSH host key is supplied in VAST_SSH_KNOWN_HOSTS. Missing, malformed or mismatched settings fail closed. There are no host secret-file mounts, separate host Ansible role, new host nginx config, certificate or DNS record.
 
-The first successful model installation resolves a tag and records its digest. Subsequent starts use the installed model and reject unexplained digest changes. Before migration or a long-term deployment, copy the recorded digest into expected_digest and preserve the lock outside the rental. Version tags are not immutable image digests: record built image digests as part of the release.
+An optional SOPS file is an offline record only; changing it does not update Komodo automatically. Recreate both containers when connection settings or credentials change.
 
-The named alias decouples client configuration from the backend model. A failed model update must be investigated through bootstrap logs and the lock: readiness alone only establishes that the alias exists, not that a new desired release succeeded.
+## Runtime boundaries
 
-## Health meanings
+The gateway permits model listing and OpenAI/Anthropic-compatible inference, blocks raw Ollama management routes and limits concurrent generation to one. Only the worker holds model weights. No public Ollama port, tailnet enrollment, paid model endpoint or inference fallback is introduced.
 
-| Signal | What it proves |
-|---|---|
-| /healthz | Gateway process answers |
-| /readyz with valid key | Ollama can describe the coding alias |
-| scripts/smoke.py | Authentication rejection, API isolation, alias discovery and a completed streamed response |
-| ollama ps plus nvidia-smi during inference | GPU placement and memory behavior |
-| A real repository edit/test cycle | The selected client/model can perform useful development work |
-| Rental stop/start and tunnel recovery | Operational recovery across the provider boundary |
-
-None of these checks substitutes for the others.
-
-## Future shared service
-
-Keep the stable client URL and separate credentials for development and applications. Add workload-specific models only after the first pilot passes. Embeddings need an embedding model; image/3D work needs its own worker API. The existing enrichment readiness callback and session cleanup must never control this persistent inference rental.
-
-A 24 GB card begins with one workload. Do not run coding and media models concurrently without a VRAM budget and scheduling tests. If application traffic becomes continuous, give it priority or a separate GPU. Consider LiteLLM or another routing layer when multiple models, application quotas or detailed usage accounting justify it; verify native ARM64 support before deployment.
+The initial service has one GPU and no automatic rental lifecycle/spend controller. Production availability and workload scheduling remain later work.
