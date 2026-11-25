@@ -31,33 +31,36 @@ services:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
 
-  gateway:
-    image: tpe-ai-gateway:1.0.0
-    build:
-      context: .
-      dockerfile: docker/gateway/Dockerfile
-      args:
-        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.30.8-alpine}
+  ollama-webui:
+    image: ghcr.io/open-webui/open-webui:latest
     restart: unless-stopped
-    user: "101:101"
+    user: "1000:1000"
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    network_mode: "service:tunnel"
     depends_on:
       tunnel:
         condition: service_started
+    networks:
+      ai:
+        aliases: [ollama-webui]
+    ports:
+      - "127.0.0.1:${OLLAMA_UI_PORT:-8081}:8080"
     environment:
-      TPE_AI_API_KEY: ${TPE_AI_API_KEY:-}
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      WEBUI_AUTH: "true"
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-}
+      WEBUI_DEFAULT_MODELS: tpe-code:latest
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=32m,uid=101,gid=101
-      - /run/ai:rw,noexec,nosuid,nodev,size=1m,mode=0700,uid=101,gid=101
+      - /tmp:rw,noexec,nosuid,size=256m
+      - /home/user/.local:rw,noexec,nosuid,nodev,size=512m,uid=1000,gid=1000
+      - /app/backend/data:rw,noexec,nosuid,nodev,size=256m
     healthcheck:
-      # Process liveness only; scripts/smoke.py checks authenticated inference.
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
+      start_period: 20s
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
